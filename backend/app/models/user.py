@@ -35,3 +35,6 @@ class User(Base):
 
     # Relación bidireccional con el modelo Role 
     role = relationship("Role", back_populates="users") 
+    
+    # Relación con Sesiones
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
