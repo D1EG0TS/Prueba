@@ -64,6 +64,12 @@ def update_user(db: Session, db_user: User, update_data: UserUpdate):
 def update_user_me(db: Session, db_user: User, user_in: UserUpdateMe):
     user_data = user_in.model_dump(exclude_unset=True)
     
+    if "password" in user_data:
+        password = user_data["password"]
+        hashed_password = get_password_hash(password)
+        user_data["hashed_password"] = hashed_password
+        del user_data["password"]
+    
     for field in user_data:
         if field in user_data:
             setattr(db_user, field, user_data[field])

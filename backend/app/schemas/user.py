@@ -36,6 +36,7 @@ class UserUpdateMe(BaseModel):
     profile_picture: Optional[str] = None
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
+    password: Optional[str] = None
 
 class UserResponse(UserBase):
     id: int
