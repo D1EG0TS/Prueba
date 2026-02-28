@@ -9,7 +9,7 @@ from app.models.session import UserSession
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
 from app.schemas.token import Token, SessionResponse
-from app.api.deps import get_current_user
+from app.api.deps import get_current_active_user
 
 router = APIRouter()
 
@@ -82,7 +82,7 @@ def refresh_token(
 
 @router.get("/sessions", response_model=List[SessionResponse])
 def get_user_sessions(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -97,7 +97,7 @@ def get_user_sessions(
 @router.delete("/sessions/{session_id}")
 def revoke_session(
     session_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> Any:
     """
