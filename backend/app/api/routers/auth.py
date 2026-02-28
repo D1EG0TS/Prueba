@@ -9,9 +9,47 @@ from app.models.session import UserSession
 from app.core.security import verify_password, create_access_token, create_refresh_token
 from app.core.config import settings
 from app.schemas.token import Token, SessionResponse
+from app.schemas.user import UserCreate, UserResponse
 from app.api.deps import get_current_active_user
+from app.crud.user import get_user_by_email, create_user
+from app.crud.audit import create_audit_log
 
 router = APIRouter()
+
+@router.post("/register", response_model=UserResponse)
+def register(
+    request: Request,
+    user_in: UserCreate,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Registro público de nuevos usuarios.
+    """
+    user = get_user_by_email(db, email=user_in.email)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="El email ya está registrado",
+        )
+    
+    # REGLA DE NEGOCIO: Fuerza el rol a Visitante (5)
+    user_in.role_id = 5
+    
+    user = create_user(db, user_in)
+    
+    # Integrar Auditoría
+    create_audit_log(
+        db,
+        user_id=user.id, # El usuario se crea a sí mismo
+        action="CREATE",
+        entity_name="User",
+        entity_id=user.id,
+        new_values={"email": user.email, "role_id": user.role_id},
+        ip_address=request.client.host if request.client else "0.0.0.0",
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    return user
 
 @router.post("/login/access-token", response_model=Token)
 def login_access_token(
