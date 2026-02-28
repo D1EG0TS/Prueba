@@ -3,7 +3,7 @@ Lógica CRUD para el modelo User.
 """
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserUpdateMe
 from app.core.security import get_password_hash
 
 def get_user(db: Session, user_id: int):
@@ -55,6 +55,18 @@ def update_user(db: Session, db_user: User, update_data: UserUpdate):
 
     for key, value in user_data.items():
         setattr(db_user, key, value)
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_user_me(db: Session, db_user: User, user_in: UserUpdateMe):
+    user_data = user_in.model_dump(exclude_unset=True)
+    
+    for field in user_data:
+        if field in user_data:
+            setattr(db_user, field, user_data[field])
 
     db.add(db_user)
     db.commit()

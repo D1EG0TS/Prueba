@@ -13,16 +13,15 @@ from app.crud.user import (
     create_user,
     update_user,
     delete_user as crud_delete_user,
+    update_user_me,
 )
-from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserUpdateMe
 from app.models.user import User
 from app.crud.audit import create_audit_log
 
-router = APIRouter(
-    dependencies=[Depends(allow_admin)]
-)
+router = APIRouter()
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("/", response_model=List[UserResponse], dependencies=[Depends(allow_admin)])
 def read_users(
     skip: int = 0,
     limit: int = 100,
@@ -35,7 +34,7 @@ def read_users(
     users = get_users(db, current_user=current_user, skip=skip, limit=limit)
     return users
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserResponse, dependencies=[Depends(allow_admin)])
 def read_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -51,7 +50,7 @@ def read_user(
         )
     return db_user
 
-@router.post("/", response_model=UserResponse)
+@router.post("/", response_model=UserResponse, dependencies=[Depends(allow_admin)])
 def create_new_user(
     request: Request,
     user: UserCreate,
@@ -89,7 +88,43 @@ def create_new_user(
     
     return new_user
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.put("/me", response_model=UserResponse)
+def update_user_profile(
+    request: Request,
+    user_in: UserUpdateMe,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Actualiza el perfil del usuario autenticado.
+    """
+    # Capture old values
+    old_values = {
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "phone_number": current_user.phone_number,
+        "profile_picture": current_user.profile_picture,
+        "date_of_birth": current_user.date_of_birth,
+        "gender": current_user.gender,
+    }
+
+    updated_user = update_user_me(db=db, db_user=current_user, user_in=user_in)
+
+    create_audit_log(
+        db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_name="User",
+        entity_id=current_user.id,
+        old_values=old_values,
+        new_values=user_in.model_dump(exclude_unset=True),
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return updated_user
+
+@router.put("/{user_id}", response_model=UserResponse, dependencies=[Depends(allow_admin)])
 def update_existing_user(
     request: Request,
     user_id: int,
@@ -146,7 +181,7 @@ def update_existing_user(
     
     return updated_user
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id}", dependencies=[Depends(allow_admin)])
 def delete_user(
     request: Request,
     user_id: int,
