@@ -2,8 +2,11 @@
 Router para la gestión de usuarios (Admin).
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from sqlalchemy.orm import Session
+import shutil
+from pathlib import Path
+import uuid
 
 from app.api.deps import get_db, get_current_active_user, allow_admin
 from app.crud.user import (
@@ -132,6 +135,41 @@ def update_user_profile(
     )
 
     return updated_user
+
+@router.post("/me/profile-picture", response_model=UserResponse)
+def upload_profile_picture(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Sube una nueva foto de perfil para el usuario actual.
+    """
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo debe ser una imagen",
+        )
+
+    file_extension = Path(file.filename).suffix
+    new_filename = f"{uuid.uuid4()}{file_extension}"
+    upload_dir = Path("uploads/profile_pictures")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_location = upload_dir / new_filename
+
+    with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # La URL se construye relativa a la raíz del servidor estático montado en /static
+    # que apunta a uploads/. Por tanto, uploads/profile_pictures/x.jpg es accesible en /static/profile_pictures/x.jpg
+    profile_picture_url = f"/static/profile_pictures/{new_filename}"
+    current_user.profile_picture = profile_picture_url
+    
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
 
 @router.put("/{user_id}", response_model=UserResponse, dependencies=[Depends(allow_admin)])
 def update_existing_user(

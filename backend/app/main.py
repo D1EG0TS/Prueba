@@ -2,6 +2,8 @@
 Punto de entrada de FastAPI y endpoints base.
 """
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routers import auth
@@ -22,6 +24,10 @@ app.add_middleware(
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
     allow_headers=["*"],
 )
+
+UPLOAD_DIR = "uploads/profile_pictures"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
