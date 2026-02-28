@@ -12,6 +12,7 @@ from app.crud.user import (
     get_users,
     create_user,
     update_user,
+    delete_user as crud_delete_user,
 )
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.models.user import User
@@ -31,7 +32,7 @@ def read_users(
     """
     Obtiene la lista de usuarios.
     """
-    users = get_users(db, skip=skip, limit=limit)
+    users = get_users(db, current_user=current_user, skip=skip, limit=limit)
     return users
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -168,8 +169,7 @@ def delete_user(
             detail="No tienes permiso para eliminar a un Super Admin"
         )
 
-    db_user.is_active = False
-    db.commit()
+    crud_delete_user(db, user_id=user_id)
 
     create_audit_log(
         db,

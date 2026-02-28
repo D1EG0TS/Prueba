@@ -1,7 +1,7 @@
 """ 
 Modelo de base de datos para los Usuarios del sistema. 
 """ 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime 
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date 
 from sqlalchemy.orm import relationship 
 from app.core.database import Base 
 from datetime import datetime, timezone 
@@ -16,9 +16,11 @@ class User(Base):
     # Nuevos campos de perfil 
     first_name = Column(String(50), nullable=False) 
     last_name = Column(String(50), nullable=False) 
-    phone_number = Column(String(20), nullable=True) 
+    phone_number = Column(String(20), nullable=True)
     # Guarda la ruta local o URL de la nube, no el archivo binario (Regla 14) 
-    profile_picture = Column(String(255), nullable=True) 
+    profile_picture = Column(String(255), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    gender = Column(String(50), nullable=True) 
     
     is_active = Column(Boolean, default=True) 
     

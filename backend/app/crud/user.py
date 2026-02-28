@@ -12,8 +12,11 @@ def get_user(db: Session, user_id: int):
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email).first()
 
-def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(User).offset(skip).limit(limit).all()
+def get_users(db: Session, current_user: User, skip: int = 0, limit: int = 100):
+    query = db.query(User)
+    if current_user.role_id == 2:
+        query = query.filter(User.role_id != 1)
+    return query.offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password)
@@ -24,6 +27,8 @@ def create_user(db: Session, user: UserCreate):
         last_name=user.last_name,
         phone_number=user.phone_number,
         profile_picture=user.profile_picture,
+        date_of_birth=user.date_of_birth,
+        gender=user.gender,
         role_id=user.role_id,
         is_active=user.is_active
     )
@@ -31,6 +36,14 @@ def create_user(db: Session, user: UserCreate):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+def delete_user(db: Session, user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.is_active = False
+        db.commit()
+        db.refresh(user)
+    return user
 
 def update_user(db: Session, db_user: User, update_data: UserUpdate):
     user_data = update_data.model_dump(exclude_unset=True)

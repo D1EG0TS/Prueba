@@ -3,7 +3,7 @@ Schemas para el modelo User.
 """
 from typing import Optional
 from pydantic import BaseModel, EmailStr, ConfigDict
-from datetime import datetime
+from datetime import datetime, date
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -11,6 +11,8 @@ class UserBase(BaseModel):
     last_name: str
     phone_number: Optional[str] = None
     profile_picture: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
     role_id: int = 5
     is_active: bool = True
 
