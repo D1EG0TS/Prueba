@@ -54,3 +54,4 @@ class RoleChecker:
         return user
 
 allow_admin = RoleChecker([1, 2])
+allow_super_admin = RoleChecker([1])

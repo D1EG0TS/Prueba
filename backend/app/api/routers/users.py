@@ -2,7 +2,7 @@
 Router para la gestión de usuarios (Admin).
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_active_user, allow_admin
@@ -15,6 +15,7 @@ from app.crud.user import (
 )
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.models.user import User
+from app.crud.audit import create_audit_log
 
 router = APIRouter(
     dependencies=[Depends(allow_admin)]
@@ -51,6 +52,7 @@ def read_user(
 
 @router.post("/", response_model=UserResponse)
 def create_new_user(
+    request: Request,
     user: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -71,10 +73,24 @@ def create_new_user(
             detail="Un Admin no puede crear un Super Admin"
         )
         
-    return create_user(db=db, user=user)
+    new_user = create_user(db=db, user=user)
+    
+    create_audit_log(
+        db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_name="User",
+        entity_id=new_user.id,
+        new_values={"email": new_user.email, "role": new_user.role_id},
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    return new_user
 
 @router.put("/{user_id}", response_model=UserResponse)
 def update_existing_user(
+    request: Request,
     user_id: int,
     user_update: UserUpdate,
     db: Session = Depends(get_db),
@@ -103,10 +119,35 @@ def update_existing_user(
                 detail="No tienes permiso para asignar el rol de Super Admin"
             )
 
-    return update_user(db=db, db_user=db_user, update_data=user_update)
+    # Capture old values
+    old_values = {
+        "email": db_user.email,
+        "first_name": db_user.first_name,
+        "last_name": db_user.last_name,
+        "phone_number": db_user.phone_number,
+        "role_id": db_user.role_id,
+        "is_active": db_user.is_active
+    }
+
+    updated_user = update_user(db=db, db_user=db_user, update_data=user_update)
+
+    create_audit_log(
+        db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_name="User",
+        entity_id=updated_user.id,
+        old_values=old_values,
+        new_values=user_update.model_dump(exclude_unset=True),
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    return updated_user
 
 @router.delete("/{user_id}")
 def delete_user(
+    request: Request,
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -129,4 +170,15 @@ def delete_user(
 
     db_user.is_active = False
     db.commit()
+
+    create_audit_log(
+        db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_name="User",
+        entity_id=user_id,
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
     return {"message": "Usuario eliminado exitosamente"}
